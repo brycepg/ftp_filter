@@ -1,4 +1,4 @@
-#include <stdlib.h> // for free() and macros
+#include <stdlib.h> // macros
 #include <stdio.h> // for fopen()
 #include <string.h> // for strstr()
 #include <stdbool.h> // c99 boolean
@@ -15,8 +15,8 @@ int main(int argc, char** argv) {
     FILE* fp_out = NULL;
 
     bool is_filtered = true; // argument check
-    char* line = NULL; // individual line from hexdump
-    size_t len = 0; // length of readline
+    const int BUFSIZE = 256; // length of readline
+    char line[BUFSIZE]; // individual line from hexdump
 
 
     if(argc == 1 || argc == 2) {
@@ -56,17 +56,34 @@ int main(int argc, char** argv) {
     }
     printf("Reading from %s. Writing to %s\n", file_in_name, file_out_name);
 
-    while(getline(&line, &len, fp_in) != -1) {
+    int beg_strip_length = 0; // Cut from beginning
+    const int READ_LENGTH = 48; // What to actually read
+    int len; // length of fgets line
+    while(fgets(line, BUFSIZE, fp_in) != NULL) {
+        len = strlen(line);
+        beg_strip_length = 10; // address line without indent
+
+        // For some reason there is an 4 char indent on some lines
+        // Strip
+        if(line[0] == ' ') {
+            beg_strip_length += 4;
+        }
+        if(len == 1) { // Empty lines
+            continue;
+        }
         if(strstr(line, "RETR") == NULL || !is_filtered) {
-            fprintf(fp_out, "%s", line);
+            for(int i = beg_strip_length; i < beg_strip_length + READ_LENGTH; 
+                i++) {
+                fputc(line[i], fp_out);
+                printf("%c", line[i]);
+            }
+            fputc('\n', fp_out);
+            printf("\n");
         } 
     }
 
     fclose(fp_in);
     fclose(fp_out);
-    if(line) {
-        free(line);
-    }
 
     return(EXIT_SUCCESS);
 }
